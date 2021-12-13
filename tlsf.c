@@ -402,10 +402,15 @@ static inline __attribute__((always_inline)) int block_can_split(block_header_t*
 /* Split a block into two, the second of which is free. */
 static inline __attribute__((always_inline)) block_header_t* block_split(block_header_t* block, size_t size)
 {
-	/* Calculate the amount of space left in the remaining block. */
+	/* Calculate the amount of space left in the remaining block.
+	 * REMINDER: remaining pointer's first field is `prev_phys_block` but this field is part of the
+	 * previous physical block. */
 	block_header_t* remaining =
 		offset_to_block(block_to_ptr(block), size - block_header_overhead);
 
+	/* `size` passed as an argument is the first block's new size, thus, the remaining block's size
+	 * is `block_size(block) - size`. However, the block's data must be precedeed by the data size.
+	 * This field is NOT part of the size, so it has to be substracted from the calculation. */
 	const size_t remain_size = block_size(block) - (size + block_header_overhead);
 
 	tlsf_assert(block_to_ptr(remaining) == align_ptr(block_to_ptr(remaining), ALIGN_SIZE)
@@ -417,6 +422,29 @@ static inline __attribute__((always_inline)) block_header_t* block_split(block_h
 
 	block_set_size(block, size);
 	block_mark_as_free(remaining);
+
+	/**
+	 * Here is the final outcome of this function:
+	 *
+	 * block             remaining (block_ptr + size - BHO)
+	 * +                                +
+	 * |                                |
+	 * v                                v
+	 * +----------------------------------------------------------------------+
+	 * |0000|    |xxxxxxxxxxxxxxxxxxxxxx|xxxx|    |###########################|
+	 * |0000|    |xxxxxxxxxxxxxxxxxxxxxx|xxxx|    |###########################|
+	 * |0000|    |xxxxxxxxxxxxxxxxxxxxxx|xxxx|    |###########################|
+	 * |0000|    |xxxxxxxxxxxxxxxxxxxxxx|xxxx|    |###########################|
+	 * +----------------------------------------------------------------------+
+	 *      |    |                           |    |
+	 *      +    +<------------------------->+    +<------------------------->
+	 *       BHO    `size` (argument) bytes   BHO      `remain_size` bytes
+	 *
+	 * Where BHO = block_header_overhead,
+	 * 0: part of the memory owned by a `block`'s previous neighbour,
+	 * x: part of the memory owned by `block`.
+	 * #: part of the memory owned by `remaining`.
+	 */
 
 	return remaining;
 }
@@ -495,11 +523,17 @@ static inline __attribute__((always_inline)) block_header_t* block_trim_free_lea
 	block_header_t* remaining_block = block;
 	if (block_can_split(block, size))
 	{
-		/* We want the 2nd block. */
+		/* We want to split `block` in two: the first block will be freed and the
+		 * second block will be returned. */
 		remaining_block = block_split(block, size - block_header_overhead);
+
+		/* `remaining_block` is the second block, mark its predecessor (first
+		 * block) as free. */
 		block_set_prev_free(remaining_block);
 
 		block_link_next(block);
+
+		/* Put back the first block into the free memory list. */
 		block_insert(control, block);
 	}
 
