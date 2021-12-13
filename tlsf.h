@@ -8,6 +8,7 @@
 #define INCLUDED_tlsf
 
 #include <stddef.h>
+#include <stdbool.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -51,6 +52,16 @@ void tlsf_walk_pool(pool_t pool, tlsf_walker walker, void* user);
 /* Returns nonzero if any internal consistency check fails. */
 int tlsf_check(tlsf_t tlsf);
 int tlsf_check_pool(pool_t pool);
+
+/*!
+ * @brief Weak function filling the given memory with a given fill pattern.
+ * 
+ * @param start: pointer to the start of the memory region to fill
+ * @param size: size of the memory region to fill
+ * @param is_free: Indicate if the pattern to use the fill the region should be 
+ * an after free or after allocation pattern.
+ */
+__attribute__((weak)) void block_absorb_post_hook(void *start, size_t size, bool is_free);
 
 #if defined(__cplusplus)
 };

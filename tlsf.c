@@ -456,6 +456,12 @@ static inline __attribute__((always_inline)) block_header_t* block_absorb(block_
 	/* Note: Leaves flags untouched. */
 	prev->size += block_size(block) + block_header_overhead;
 	block_link_next(prev);
+
+	if (block_absorb_post_hook != NULL)
+	{
+		block_absorb_post_hook(block, sizeof(block_header_t), POISONING_AFTER_FREE);
+	}
+
 	return prev;
 }
 

@@ -6,14 +6,18 @@
 
 #pragma once
 #include <stddef.h>
-
-#if defined __has_include && __has_include("tlsf_platform.h")
-#include "tlsf_platform.h"
-#endif
+#include <assert.h>
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+/*
+** Constants definition for poisoning.
+** These defines are used as 3rd argument of tlsf_poison_fill_region() for readability purposes.
+*/
+#define POISONING_AFTER_FREE true
+#define POISONING_AFTER_MALLOC !POISONING_AFTER_FREE
 
 /*
 ** Cast and min/max macros.
