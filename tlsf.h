@@ -1,12 +1,6 @@
 /*
- * SPDX-FileCopyrightText: 2006-2016 Matthew Conte, 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2006-2016 Matthew Conte
  *
- * Written by Matthew Conte
- * 	http://tlsf.baisoku.org
- *
- * Based on the original documentation by Miguel Masmano:
- *	http://www.gii.upv.es/tlsf/main/docs
- * 
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
