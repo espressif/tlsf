@@ -916,10 +916,34 @@ void* tlsf_malloc(tlsf_t tlsf, size_t size)
 	return block_prepare_used(control, block, adjust);
 }
 
-void* tlsf_memalign(tlsf_t tlsf, size_t align, size_t size)
+/**
+ * @brief Allocate memory of at least `size` bytes where byte at `data_offset` will be aligned to `alignment`.
+ *
+ * This function will allocate memory pointed by `ptr`. However, the byte at `data_offset` of
+ * this piece of memory (i.e., byte at `ptr` + `data_offset`) will be aligned to `alignment`.
+ * This function is useful for allocating memory that will internally have a header, and the
+ * usable memory following the header (i.e. `ptr` + `data_offset`) must be aligned.
+ *
+ * For example, a call to `multi_heap_aligned_alloc_impl_offs(heap, 64, 256, 20)` will return a
+ * pointer `ptr` to free memory of minimum 64 bytes, where `ptr + 20` is aligned on `256`.
+ * So `(ptr + 20) % 256` equals 0.
+ *
+ * @param tlsf TLSF structure to allocate memory from.
+ * @param align Alignment for the returned pointer's offset.
+ * @param size Minimum size, in bytes, of the memory to allocate INCLUDING
+ *             `data_offset` bytes.
+ * @param data_offset Offset to be aligned on `alignment`. This can be 0, in
+ *                    this case, the returned pointer will be aligned on
+ *                    `alignment`. If it is not a multiple of CPU word size,
+ *                    it will be aligned up to the closest multiple of it.
+ *
+ * @return pointer to free memory.
+ */
+void* tlsf_memalign_offs(tlsf_t tlsf, size_t align, size_t size, size_t data_offset)
 {
 	control_t* control = tlsf_cast(control_t*, tlsf);
 	const size_t adjust = adjust_request_size(size, ALIGN_SIZE);
+	const size_t off_adjust = align_up(data_offset, ALIGN_SIZE);
 
 	/*
 	** We must allocate an additional minimum block size bytes so that if
@@ -929,8 +953,11 @@ void* tlsf_memalign(tlsf_t tlsf, size_t align, size_t size)
 	** the prev_phys_block field is not valid, and we can't simply adjust
 	** the size of that block.
 	*/
-	const size_t gap_minimum = sizeof(block_header_t);
-	const size_t size_with_gap = adjust_request_size(adjust + align + gap_minimum, align);
+	const size_t gap_minimum = sizeof(block_header_t) + off_adjust;
+	/* The offset is included in both `adjust` and `gap_minimum`, so we
+	** need to subtract it once.
+	*/
+	const size_t size_with_gap = adjust_request_size(adjust + align + gap_minimum - off_adjust, align);
 
 	/*
 	** If alignment is less than or equals base alignment, we're done.
@@ -950,8 +977,11 @@ void* tlsf_memalign(tlsf_t tlsf, size_t align, size_t size)
 		size_t gap = tlsf_cast(size_t,
 			tlsf_cast(tlsfptr_t, aligned) - tlsf_cast(tlsfptr_t, ptr));
 
-		/* If gap size is too small, offset to next aligned boundary. */
-		if (gap && gap < gap_minimum)
+	   /*
+		** If gap size is too small or if there is not gap but we need one,
+		** offset to next aligned boundary.
+		*/
+		if ((gap && gap < gap_minimum) || (!gap && off_adjust))
 		{
 			const size_t gap_remain = gap_minimum - gap;
 			const size_t offset = tlsf_max(gap_remain, align);
@@ -966,12 +996,23 @@ void* tlsf_memalign(tlsf_t tlsf, size_t align, size_t size)
 		if (gap)
 		{
 			tlsf_assert(gap >= gap_minimum && "gap size too small");
-			block = block_trim_free_leading(control, block, gap);
+			block = block_trim_free_leading(control, block, gap - off_adjust);
 		}
 	}
 
+	/* Preparing the block will also the trailing free memory. */
 	return block_prepare_used(control, block, adjust);
 }
+
+/**
+ * @brief Same as `tlsf_memalign_offs` function but with a 0 offset.
+ * The pointer returned is aligned on `align`.
+ */
+void* tlsf_memalign(tlsf_t tlsf, size_t align, size_t size)
+{
+	return tlsf_memalign_offs(tlsf, align, size, 0);
+}
+
 
 void tlsf_free(tlsf_t tlsf, void* ptr)
 {
