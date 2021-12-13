@@ -14,6 +14,13 @@
 extern "C" {
 #endif
 
+/*
+** Cast and min/max macros.
+*/
+#define tlsf_cast(t, exp)	((t) (exp))
+#define tlsf_min(a, b)		((a) < (b) ? (a) : (b))
+#define tlsf_max(a, b)		((a) > (b) ? (a) : (b))
+
 enum tlsf_config
 {
 	/* log2 of number of linear subdivisions of block sizes. Larger

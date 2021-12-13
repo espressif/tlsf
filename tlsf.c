@@ -200,14 +200,6 @@ tlsf_decl int tlsf_fls_sizet(size_t size)
 #undef tlsf_decl
 
 /*
-** Cast and min/max macros.
-*/
-
-#define tlsf_cast(t, exp)	((t) (exp))
-#define tlsf_min(a, b)		((a) < (b) ? (a) : (b))
-#define tlsf_max(a, b)		((a) > (b) ? (a) : (b))
-
-/*
 ** Set assert macro, if it has not been provided by the user.
 */
 #if !defined (tlsf_assert)
