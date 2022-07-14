@@ -8,6 +8,8 @@
 #include <limits.h>
 #include <stdio.h>
 #include "tlsf.h"
+#include "tlsf_common.h"
+#include "tlsf_block_functions.h"
 
 #if defined(__cplusplus)
 #define tlsf_decl inline
@@ -200,13 +202,6 @@ tlsf_decl int tlsf_fls_sizet(size_t size)
 #undef tlsf_decl
 
 /*
-** Set assert macro, if it has not been provided by the user.
-*/
-#if !defined (tlsf_assert)
-#define tlsf_assert assert
-#endif
-
-/*
 ** Static assertion mechanism.
 */
 
@@ -225,186 +220,6 @@ tlsf_static_assert(sizeof(unsigned int) * CHAR_BIT >= SL_INDEX_COUNT);
 
 /* Ensure we've properly tuned our sizes. */
 tlsf_static_assert(ALIGN_SIZE == SMALL_BLOCK_SIZE / SL_INDEX_COUNT);
-
-/*
-** Data structures and associated constants.
-*/
-
-/*
-** Block header structure.
-**
-** There are several implementation subtleties involved:
-** - The prev_phys_block field is only valid if the previous block is free.
-** - The prev_phys_block field is actually stored at the end of the
-**   previous block. It appears at the beginning of this structure only to
-**   simplify the implementation.
-** - The next_free / prev_free fields are only valid if the block is free.
-*/
-typedef struct block_header_t
-{
-	/* Points to the previous physical block. */
-	struct block_header_t* prev_phys_block;
-
-	/* The size of this block, excluding the block header. */
-	size_t size;
-
-	/* Next and previous free blocks. */
-	struct block_header_t* next_free;
-	struct block_header_t* prev_free;
-} block_header_t;
-
-/*
-** Since block sizes are always at least a multiple of 4, the two least
-** significant bits of the size field are used to store the block status:
-** - bit 0: whether block is busy or free
-** - bit 1: whether previous block is busy or free
-*/
-static const size_t block_header_free_bit = 1 << 0;
-static const size_t block_header_prev_free_bit = 1 << 1;
-
-/*
-** The size of the block header exposed to used blocks is the size field.
-** The prev_phys_block field is stored *inside* the previous free block.
-*/
-static const size_t block_header_overhead = sizeof(size_t);
-
-/* User data starts directly after the size field in a used block. */
-static const size_t block_start_offset =
-	offsetof(block_header_t, size) + sizeof(size_t);
-
-/*
-** A free block must be large enough to store its header minus the size of
-** the prev_phys_block field, and no larger than the number of addressable
-** bits for FL_INDEX.
-*/
-static const size_t block_size_min = 
-	sizeof(block_header_t) - sizeof(block_header_t*);
-static const size_t block_size_max = tlsf_cast(size_t, 1) << FL_INDEX_MAX;
-
-
-/* The TLSF control structure. */
-typedef struct control_t
-{
-	/* Empty lists point at this block to indicate they are free. */
-	block_header_t block_null;
-
-	/* Bitmaps for free lists. */
-	unsigned int fl_bitmap;
-	unsigned int sl_bitmap[FL_INDEX_COUNT];
-
-	/* Head of free lists. */
-	block_header_t* blocks[FL_INDEX_COUNT][SL_INDEX_COUNT];
-} control_t;
-
-/* A type used for casting when doing pointer arithmetic. */
-typedef ptrdiff_t tlsfptr_t;
-
-/*
-** block_header_t member functions.
-*/
-
-static size_t block_size(const block_header_t* block)
-{
-	return block->size & ~(block_header_free_bit | block_header_prev_free_bit);
-}
-
-static void block_set_size(block_header_t* block, size_t size)
-{
-	const size_t oldsize = block->size;
-	block->size = size | (oldsize & (block_header_free_bit | block_header_prev_free_bit));
-}
-
-static int block_is_last(const block_header_t* block)
-{
-	return block_size(block) == 0;
-}
-
-static int block_is_free(const block_header_t* block)
-{
-	return tlsf_cast(int, block->size & block_header_free_bit);
-}
-
-static void block_set_free(block_header_t* block)
-{
-	block->size |= block_header_free_bit;
-}
-
-static void block_set_used(block_header_t* block)
-{
-	block->size &= ~block_header_free_bit;
-}
-
-static int block_is_prev_free(const block_header_t* block)
-{
-	return tlsf_cast(int, block->size & block_header_prev_free_bit);
-}
-
-static void block_set_prev_free(block_header_t* block)
-{
-	block->size |= block_header_prev_free_bit;
-}
-
-static void block_set_prev_used(block_header_t* block)
-{
-	block->size &= ~block_header_prev_free_bit;
-}
-
-static block_header_t* block_from_ptr(const void* ptr)
-{
-	return tlsf_cast(block_header_t*,
-		tlsf_cast(unsigned char*, ptr) - block_start_offset);
-}
-
-static void* block_to_ptr(const block_header_t* block)
-{
-	return tlsf_cast(void*,
-		tlsf_cast(unsigned char*, block) + block_start_offset);
-}
-
-/* Return location of next block after block of given size. */
-static block_header_t* offset_to_block(const void* ptr, size_t size)
-{
-	return tlsf_cast(block_header_t*, tlsf_cast(tlsfptr_t, ptr) + size);
-}
-
-/* Return location of previous block. */
-static block_header_t* block_prev(const block_header_t* block)
-{
-	tlsf_assert(block_is_prev_free(block) && "previous block must be free");
-	return block->prev_phys_block;
-}
-
-/* Return location of next existing block. */
-static block_header_t* block_next(const block_header_t* block)
-{
-	block_header_t* next = offset_to_block(block_to_ptr(block),
-		block_size(block) - block_header_overhead);
-	tlsf_assert(!block_is_last(block));
-	return next;
-}
-
-/* Link a new block with its physical neighbor, return the neighbor. */
-static block_header_t* block_link_next(block_header_t* block)
-{
-	block_header_t* next = block_next(block);
-	next->prev_phys_block = block;
-	return next;
-}
-
-static void block_mark_as_free(block_header_t* block)
-{
-	/* Link the block to the next block, first. */
-	block_header_t* next = block_link_next(block);
-	block_set_prev_free(next);
-	block_set_free(block);
-}
-
-static void block_mark_as_used(block_header_t* block)
-{
-	block_header_t* next = block_next(block);
-	block_set_prev_used(next);
-	block_set_used(block);
-}
 
 static size_t align_up(size_t x, size_t align)
 {
