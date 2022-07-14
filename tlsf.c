@@ -221,19 +221,19 @@ tlsf_static_assert(sizeof(unsigned int) * CHAR_BIT >= SL_INDEX_COUNT);
 /* Ensure we've properly tuned our sizes. */
 tlsf_static_assert(ALIGN_SIZE == SMALL_BLOCK_SIZE / SL_INDEX_COUNT);
 
-static size_t align_up(size_t x, size_t align)
+static inline __attribute__((always_inline)) size_t align_up(size_t x, size_t align)
 {
 	tlsf_assert(0 == (align & (align - 1)) && "must align to a power of two");
 	return (x + (align - 1)) & ~(align - 1);
 }
 
-static size_t align_down(size_t x, size_t align)
+static inline __attribute__((always_inline)) size_t align_down(size_t x, size_t align)
 {
 	tlsf_assert(0 == (align & (align - 1)) && "must align to a power of two");
 	return x - (x & (align - 1));
 }
 
-static void* align_ptr(const void* ptr, size_t align)
+static inline __attribute__((always_inline)) void* align_ptr(const void* ptr, size_t align)
 {
 	const tlsfptr_t aligned =
 		(tlsf_cast(tlsfptr_t, ptr) + (align - 1)) & ~(align - 1);
@@ -245,7 +245,7 @@ static void* align_ptr(const void* ptr, size_t align)
 ** Adjust an allocation size to be aligned to word size, and no smaller
 ** than internal minimum.
 */
-static size_t adjust_request_size(size_t size, size_t align)
+static inline __attribute__((always_inline)) size_t adjust_request_size(size_t size, size_t align)
 {
 	size_t adjust = 0;
 	if (size)
@@ -266,7 +266,7 @@ static size_t adjust_request_size(size_t size, size_t align)
 ** the documentation found in the white paper.
 */
 
-static void mapping_insert(size_t size, int* fli, int* sli)
+static inline __attribute__((always_inline)) void mapping_insert(size_t size, int* fli, int* sli)
 {
 	int fl, sl;
 	if (size < SMALL_BLOCK_SIZE)
@@ -286,7 +286,7 @@ static void mapping_insert(size_t size, int* fli, int* sli)
 }
 
 /* This version rounds up to the next block size (for allocations) */
-static void mapping_search(size_t size, int* fli, int* sli)
+static inline __attribute__((always_inline)) void mapping_search(size_t size, int* fli, int* sli)
 {
 	if (size >= SMALL_BLOCK_SIZE)
 	{
@@ -296,7 +296,7 @@ static void mapping_search(size_t size, int* fli, int* sli)
 	mapping_insert(size, fli, sli);
 }
 
-static block_header_t* search_suitable_block(control_t* control, int* fli, int* sli)
+static inline __attribute__((always_inline)) block_header_t* search_suitable_block(control_t* control, int* fli, int* sli)
 {
 	int fl = *fli;
 	int sl = *sli;
@@ -329,7 +329,7 @@ static block_header_t* search_suitable_block(control_t* control, int* fli, int* 
 }
 
 /* Remove a free block from the free list.*/
-static void remove_free_block(control_t* control, block_header_t* block, int fl, int sl)
+static inline __attribute__((always_inline)) void remove_free_block(control_t* control, block_header_t* block, int fl, int sl)
 {
 	block_header_t* prev = block->prev_free;
 	block_header_t* next = block->next_free;
@@ -358,7 +358,7 @@ static void remove_free_block(control_t* control, block_header_t* block, int fl,
 }
 
 /* Insert a free block into the free block list. */
-static void insert_free_block(control_t* control, block_header_t* block, int fl, int sl)
+static inline __attribute__((always_inline)) void insert_free_block(control_t* control, block_header_t* block, int fl, int sl)
 {
 	block_header_t* current = control->blocks[fl][sl];
 	tlsf_assert(current && "free list cannot have a null entry");
@@ -379,7 +379,7 @@ static void insert_free_block(control_t* control, block_header_t* block, int fl,
 }
 
 /* Remove a given block from the free list. */
-static void block_remove(control_t* control, block_header_t* block)
+static inline __attribute__((always_inline)) void block_remove(control_t* control, block_header_t* block)
 {
 	int fl, sl;
 	mapping_insert(block_size(block), &fl, &sl);
@@ -387,20 +387,20 @@ static void block_remove(control_t* control, block_header_t* block)
 }
 
 /* Insert a given block into the free list. */
-static void block_insert(control_t* control, block_header_t* block)
+static inline __attribute__((always_inline)) void block_insert(control_t* control, block_header_t* block)
 {
 	int fl, sl;
 	mapping_insert(block_size(block), &fl, &sl);
 	insert_free_block(control, block, fl, sl);
 }
 
-static int block_can_split(block_header_t* block, size_t size)
+static inline __attribute__((always_inline)) int block_can_split(block_header_t* block, size_t size)
 {
 	return block_size(block) >= sizeof(block_header_t) + size;
 }
 
 /* Split a block into two, the second of which is free. */
-static block_header_t* block_split(block_header_t* block, size_t size)
+static inline __attribute__((always_inline)) block_header_t* block_split(block_header_t* block, size_t size)
 {
 	/* Calculate the amount of space left in the remaining block. */
 	block_header_t* remaining =
@@ -422,7 +422,7 @@ static block_header_t* block_split(block_header_t* block, size_t size)
 }
 
 /* Absorb a free block's storage into an adjacent previous free block. */
-static block_header_t* block_absorb(block_header_t* prev, block_header_t* block)
+static inline __attribute__((always_inline)) block_header_t* block_absorb(block_header_t* prev, block_header_t* block)
 {
 	tlsf_assert(!block_is_last(prev) && "previous block can't be last");
 	/* Note: Leaves flags untouched. */
@@ -432,7 +432,7 @@ static block_header_t* block_absorb(block_header_t* prev, block_header_t* block)
 }
 
 /* Merge a just-freed block with an adjacent previous free block. */
-static block_header_t* block_merge_prev(control_t* control, block_header_t* block)
+static inline __attribute__((always_inline)) block_header_t* block_merge_prev(control_t* control, block_header_t* block)
 {
 	if (block_is_prev_free(block))
 	{
@@ -447,7 +447,7 @@ static block_header_t* block_merge_prev(control_t* control, block_header_t* bloc
 }
 
 /* Merge a just-freed block with an adjacent free block. */
-static block_header_t* block_merge_next(control_t* control, block_header_t* block)
+static inline __attribute__((always_inline)) block_header_t* block_merge_next(control_t* control, block_header_t* block)
 {
 	block_header_t* next = block_next(block);
 	tlsf_assert(next && "next physical block can't be null");
@@ -463,7 +463,7 @@ static block_header_t* block_merge_next(control_t* control, block_header_t* bloc
 }
 
 /* Trim any trailing block space off the end of a block, return to pool. */
-static void block_trim_free(control_t* control, block_header_t* block, size_t size)
+static inline __attribute__((always_inline)) void block_trim_free(control_t* control, block_header_t* block, size_t size)
 {
 	tlsf_assert(block_is_free(block) && "block must be free");
 	if (block_can_split(block, size))
@@ -476,7 +476,7 @@ static void block_trim_free(control_t* control, block_header_t* block, size_t si
 }
 
 /* Trim any trailing block space off the end of a used block, return to pool. */
-static void block_trim_used(control_t* control, block_header_t* block, size_t size)
+static inline __attribute__((always_inline)) void block_trim_used(control_t* control, block_header_t* block, size_t size)
 {
 	tlsf_assert(!block_is_free(block) && "block must be used");
 	if (block_can_split(block, size))
@@ -490,7 +490,7 @@ static void block_trim_used(control_t* control, block_header_t* block, size_t si
 	}
 }
 
-static block_header_t* block_trim_free_leading(control_t* control, block_header_t* block, size_t size)
+static inline __attribute__((always_inline)) block_header_t* block_trim_free_leading(control_t* control, block_header_t* block, size_t size)
 {
 	block_header_t* remaining_block = block;
 	if (block_can_split(block, size))
@@ -506,7 +506,7 @@ static block_header_t* block_trim_free_leading(control_t* control, block_header_
 	return remaining_block;
 }
 
-static block_header_t* block_locate_free(control_t* control, size_t size)
+static inline __attribute__((always_inline)) block_header_t* block_locate_free(control_t* control, size_t size)
 {
 	int fl = 0, sl = 0;
 	block_header_t* block = 0;
@@ -536,7 +536,7 @@ static block_header_t* block_locate_free(control_t* control, size_t size)
 	return block;
 }
 
-static void* block_prepare_used(control_t* control, block_header_t* block, size_t size)
+static inline __attribute__((always_inline)) void* block_prepare_used(control_t* control, block_header_t* block, size_t size)
 {
 	void* p = 0;
 	if (block)
