@@ -64,6 +64,8 @@ int tlsf_check_pool(pool_t pool);
  */
 __attribute__((weak)) void block_absorb_post_hook(void *start, size_t size, bool is_free);
 
+__attribute__((weak)) bool tlsf_check_hook(void *start, size_t size, bool is_free);
+
 #if defined(__cplusplus)
 };
 #endif
