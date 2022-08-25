@@ -64,7 +64,18 @@ int tlsf_check_pool(pool_t pool);
  */
 __attribute__((weak)) void block_absorb_post_hook(void *start, size_t size, bool is_free);
 
-__attribute__((weak)) bool tlsf_check_hook(void *start, size_t size, bool is_free);
+/**
+ * @brief Weak function called on every free block of memory allowing the user to implement
+ * application specific checks on the memory.
+ * 
+ * @param start The start pointer to the memory of a block
+ * @param size The size of the memory in the block
+ * @param is_free Set to true when the memory belongs to a free block.
+ * False if it belongs to an allocated block.
+ * @return true The checks found no inconsistency in the memory
+ * @return false The checks in the function highlighted an inconsistency in the memory
+ */
+__attribute__((weak))  bool tlsf_check_hook(void *start, size_t size, bool is_free);
 
 #if defined(__cplusplus)
 };
