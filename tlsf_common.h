@@ -37,9 +37,9 @@ enum tlsf_config
 {
 	/* log2 of number of linear subdivisions of block sizes. Larger
 	** values require more memory in the control structure. Values of
-	** 4 or 5 are typical.
+	** 4 or 5 are typical, 3 is for very small pools.
 	*/
-	SL_INDEX_COUNT_LOG2  = 5,
+	SL_INDEX_COUNT_LOG2_MIN  = 3,
 
 	/* All allocation sizes and addresses are aligned to 4 bytes. */
 	ALIGN_SIZE_LOG2 = 2,
@@ -54,22 +54,16 @@ enum tlsf_config
 	** trying to split size ranges into more slots than we have available.
 	** Instead, we calculate the minimum threshold size, and place all
 	** blocks below that size into the 0th first-level list.
+	** Values below are the absolute minimum to accept a pool addition.    
 	*/
 
 	/* Tunning the first level, we can reduce TLSF pool overhead
 	 * in exchange of manage a pool smaller than 4GB
 	 */
-	#ifdef FL_INDEX_MAX_PLATFORM
-	FL_INDEX_MAX = FL_INDEX_MAX_PLATFORM,
-	#else
-	FL_INDEX_MAX = 30,
-	#endif
-
-	SL_INDEX_COUNT = (1 << SL_INDEX_COUNT_LOG2),
-	FL_INDEX_SHIFT = (SL_INDEX_COUNT_LOG2 + ALIGN_SIZE_LOG2),
-	FL_INDEX_COUNT = (FL_INDEX_MAX - FL_INDEX_SHIFT + 1),
-
-	SMALL_BLOCK_SIZE = (1 << FL_INDEX_SHIFT),
+	FL_INDEX_MAX_MIN = 14,
+	SL_INDEX_COUNT_MIN = (1 << SL_INDEX_COUNT_LOG2_MIN),
+	FL_INDEX_SHIFT_MIN = (SL_INDEX_COUNT_LOG2_MIN + ALIGN_SIZE_LOG2),
+	FL_INDEX_COUNT_MIN = (FL_INDEX_MAX_MIN - FL_INDEX_SHIFT_MIN + 1),
 };
 
 /*
@@ -91,20 +85,6 @@ typedef struct block_header_t
 	struct block_header_t* next_free;
 	struct block_header_t* prev_free;
 } block_header_t;
-
-/* The TLSF control structure. */
-typedef struct control_t
-{
-	/* Empty lists point at this block to indicate they are free. */
-	block_header_t block_null;
-
-	/* Bitmaps for free lists. */
-	unsigned int fl_bitmap;
-	unsigned int sl_bitmap[FL_INDEX_COUNT];
-
-	/* Head of free lists. */
-	block_header_t* blocks[FL_INDEX_COUNT][SL_INDEX_COUNT];
-} control_t;
 
 /*
 ** Since block sizes are always at least a multiple of 4, the two least
@@ -132,7 +112,31 @@ static const size_t block_start_offset =
 */
 static const size_t block_size_min = 
 	sizeof(block_header_t) - sizeof(block_header_t*);
-static const size_t block_size_max = tlsf_cast(size_t, 1) << FL_INDEX_MAX;
+static const size_t block_size_max = tlsf_cast(size_t, 1) << FL_INDEX_MAX_MIN;
+
+/* The TLSF control structure. */
+typedef struct control_t
+{
+    /* Empty lists point at this block to indicate they are free. */
+    block_header_t block_null;
+
+    /* Local parameter for the pool */
+    unsigned int fl_index_count;
+    unsigned int fl_index_shift;
+    unsigned int fl_index_max;  
+    unsigned int sl_index_count;
+    unsigned int sl_index_count_log2;
+    unsigned int small_block_size;
+    size_t size;
+
+    /* Bitmaps for free lists. */
+    unsigned int fl_bitmap;
+    unsigned int *sl_bitmap;    
+
+    /* Head of free lists. */
+    block_header_t** blocks;
+} control_t;
+
 
 #if defined(__cplusplus)
 };
