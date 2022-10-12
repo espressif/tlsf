@@ -35,7 +35,6 @@
 ** ffs/fls return 1-32 by default, returning 0 for error.
 */
 
-
 /*
 ** Detect whether or not we are building for a 32- or 64-bit (LP/LLP)
 ** architecture. There is no reliable portable method at compile-time.
@@ -224,7 +223,7 @@ static inline __attribute__((always_inline)) size_t align_up(size_t x, size_t al
 
 static inline __attribute__((always_inline)) size_t align_down(size_t x, size_t align)
 {
-	tlsf_assert(0 == (align & (align - 1)) && "must align to a power of two ");
+	tlsf_assert(0 == (align & (align - 1)) && "must align to a power of two");
 	return x - (x & (align - 1));
 }
 
@@ -362,7 +361,8 @@ static inline __attribute__((always_inline)) void insert_free_block(control_t* c
 	block->prev_free = &control->block_null;
 	current->prev_free = block;
 
-	tlsf_assert(block_to_ptr(block) == align_ptr(block_to_ptr(block), ALIGN_SIZE) && "block not aligned properly");
+	tlsf_assert(block_to_ptr(block) == align_ptr(block_to_ptr(block), ALIGN_SIZE)
+		&& "block not aligned properly");
 	/*
 	** Insert the new block at the head of the list, and mark the first-
 	** and second-level bitmaps appropriately.
@@ -407,7 +407,8 @@ static inline __attribute__((always_inline)) block_header_t* block_split(block_h
 	 * This field is NOT part of the size, so it has to be substracted from the calculation. */
 	const size_t remain_size = block_size(block) - (size + block_header_overhead);
 
-	tlsf_assert(block_to_ptr(remaining) == align_ptr(block_to_ptr(remaining), ALIGN_SIZE) && "remaining block not aligned properly");
+	tlsf_assert(block_to_ptr(remaining) == align_ptr(block_to_ptr(remaining), ALIGN_SIZE)
+		&& "remaining block not aligned properly");
 
 	tlsf_assert(block_size(block) == remain_size + size + block_header_overhead);
 	block_set_size(remaining, remain_size);
