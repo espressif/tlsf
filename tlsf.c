@@ -794,11 +794,11 @@ int tlsf_check_pool(pool_t pool)
 size_t tlsf_fit_size(tlsf_t tlsf, size_t size)
 {
 	/* because it's GoodFit, allocable size is one range lower */
-	if (size) 
+	if (size && tlsf != NULL) 
 	{
 		size_t sl_interval;
 		control_t* control = tlsf_cast(control_t*, tlsf);
-		sl_interval = (1 << ((sizeof(size_t) * 8 - 1) - __builtin_clz(size))) / control->sl_index_count;
+		sl_interval = (1 << (32 - __builtin_clz(size) - 1)) / control->sl_index_count;
 		return size & ~(sl_interval - 1);
 	}
 
@@ -831,6 +831,10 @@ size_t tlsf_block_size_min(void)
 
 size_t tlsf_block_size_max(tlsf_t tlsf)
 {
+	if (tlsf == NULL)
+	{
+		return 0;
+	}
 	control_t* control = tlsf_cast(control_t*, tlsf);
 	return tlsf_cast(size_t, 1) << control->fl_index_max;
 }
@@ -951,15 +955,20 @@ tlsf_t tlsf_create(void* mem, size_t max_bytes)
 #if _DEBUG
 	if (test_ffs_fls())
 	{
-		return 0;
+		return NULL;
 	}
 #endif
+
+	if (mem == NULL)
+	{
+		return NULL;
+	}
 
 	if (((tlsfptr_t)mem % ALIGN_SIZE) != 0)
 	{
 		printf("tlsf_create: Memory must be aligned to %u bytes.\n",
 			(unsigned int)ALIGN_SIZE);
-		return 0;
+		return NULL;
 	}
 
 	control_t* control_ptr = control_construct(tlsf_cast(control_t*, mem), max_bytes);

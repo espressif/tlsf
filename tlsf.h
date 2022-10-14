@@ -46,6 +46,15 @@ size_t tlsf_block_size_min(void);
 size_t tlsf_block_size_max(tlsf_t tlsf);
 size_t tlsf_pool_overhead(void);
 size_t tlsf_alloc_overhead(void);
+
+/**
+ * @brief Return the allocable size based on the size passed
+ * as parameter
+ * 
+ * @param tlsf Pointer to the tlsf structure
+ * @param size The allocation size
+ * @return size_t The updated allocation size
+ */
 size_t tlsf_fit_size(tlsf_t tlsf, size_t size);
 
 /* Debugging. */
