@@ -629,7 +629,8 @@ static control_t* control_construct(control_t* control, size_t bytes)
 
 
 	/* SL_INDEX_COUNT must be <= number of bits in sl_bitmap's storage type. */
-	tlsf_assert(sizeof(unsigned int) * CHAR_BIT >= control->sl_index_count); //CHAR_BIT less than sl_index_count");
+	tlsf_assert(sizeof(unsigned int) * CHAR_BIT >= control->sl_index_count
+		&& "CHAR_BIT less than sl_index_count");
 
 	/* Ensure we've properly tuned our sizes. */
 	tlsf_assert(ALIGN_SIZE == control->small_block_size / control->sl_index_count); //ALIGN_SIZE does not match");
