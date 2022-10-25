@@ -20,8 +20,8 @@ typedef void* tlsf_t;
 typedef void* pool_t;
 
 /* Create/destroy a memory pool. */
-tlsf_t tlsf_create(void* mem);
-tlsf_t tlsf_create_with_pool(void* mem, size_t bytes);
+tlsf_t tlsf_create(void* mem, size_t max_bytes);
+tlsf_t tlsf_create_with_pool(void* mem, size_t pool_bytes, size_t max_bytes);
 void tlsf_destroy(tlsf_t tlsf);
 pool_t tlsf_get_pool(tlsf_t tlsf);
 
@@ -40,12 +40,22 @@ void tlsf_free(tlsf_t tlsf, void* ptr);
 size_t tlsf_block_size(void* ptr);
 
 /* Overheads/limits of internal structures. */
-size_t tlsf_size(void);
+size_t tlsf_size(tlsf_t tlsf);
 size_t tlsf_align_size(void);
 size_t tlsf_block_size_min(void);
-size_t tlsf_block_size_max(void);
+size_t tlsf_block_size_max(tlsf_t tlsf);
 size_t tlsf_pool_overhead(void);
 size_t tlsf_alloc_overhead(void);
+
+/**
+ * @brief Return the allocable size based on the size passed
+ * as parameter
+ * 
+ * @param tlsf Pointer to the tlsf structure
+ * @param size The allocation size
+ * @return size_t The updated allocation size
+ */
+size_t tlsf_fit_size(tlsf_t tlsf, size_t size);
 
 /* Debugging. */
 typedef void (*tlsf_walker)(void* ptr, size_t size, int used, void* user);
