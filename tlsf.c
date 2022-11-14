@@ -14,7 +14,7 @@
 #if defined(__cplusplus)
 #define tlsf_decl inline
 #else
-#define tlsf_decl static
+#define tlsf_decl static inline __attribute__((always_inline))
 #endif
 
 /*
