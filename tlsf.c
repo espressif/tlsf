@@ -795,17 +795,20 @@ int tlsf_check_pool(pool_t pool)
 
 size_t tlsf_fit_size(tlsf_t tlsf, size_t size)
 {
-	/* because it's GoodFit, allocable size is one range lower */
-	if (size && tlsf != NULL) 
-	{
-		size_t sl_interval;
-		control_t* control = tlsf_cast(control_t*, tlsf);
-		sl_interval = (1 << (32 - __builtin_clz(size) - 1)) / control->sl_index_count;
-		return size & ~(sl_interval - 1);
+	if (size == 0 || tlsf == NULL) {
+		return 0;
 	}
 
-	return 0;
-}   
+	control_t* control = tlsf_cast(control_t*, tlsf);
+	if (size < control->small_block_size) {
+		return adjust_request_size(tlsf, size, ALIGN_SIZE);
+	}
+
+	/* because it's GoodFit, allocable size is one range lower */
+	size_t sl_interval;
+	sl_interval = (1 << (32 - __builtin_clz(size) - 1)) / control->sl_index_count;
+	return size & ~(sl_interval - 1);
+}
 
 /*
 ** Size of the TLSF structures in a given memory block passed to
