@@ -659,7 +659,7 @@ typedef struct integrity_t
 
 #define tlsf_insist(x) { if (!(x)) { status--; } }
 
-static void integrity_walker(void* ptr, size_t size, int used, void* user)
+static bool integrity_walker(void* ptr, size_t size, int used, void* user)
 {
 	block_header_t* block = block_from_ptr(ptr);
 	integrity_t* integ = tlsf_cast(integrity_t*, user);
@@ -691,6 +691,8 @@ static void integrity_walker(void* ptr, size_t size, int used, void* user)
 
 	integ->prev_status = this_status;
 	integ->status += status;
+
+	return true;
 }
 
 
@@ -750,10 +752,11 @@ int tlsf_check(tlsf_t tlsf)
 
 #undef tlsf_insist
 
-static void default_walker(void* ptr, size_t size, int used, void* user)
+static bool default_walker(void* ptr, size_t size, int used, void* user)
 {
 	(void)user;
 	printf("\t%p %s size: %x (%p)\n", ptr, used ? "used" : "free", (unsigned int)size, block_from_ptr(ptr));
+	return true;
 }
 
 void tlsf_walk_pool(pool_t pool, tlsf_walker walker, void* user)
@@ -762,9 +765,10 @@ void tlsf_walk_pool(pool_t pool, tlsf_walker walker, void* user)
 	block_header_t* block =
 		offset_to_block(pool, -(int)block_header_overhead);
 
-	while (block && !block_is_last(block))
+	bool ret_val = true;
+	while (block && !block_is_last(block) && ret_val == true)
 	{
-		pool_walker(
+		ret_val = pool_walker(
 			block_to_ptr(block),
 			block_size(block),
 			!block_is_free(block),
