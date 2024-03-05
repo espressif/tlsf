@@ -280,14 +280,14 @@ static inline __attribute__((always_inline)) void mapping_insert(control_t* cont
 }
 
 /* This version rounds up to the next block size (for allocations) */
-static inline __attribute__((always_inline)) void mapping_search(control_t* control, size_t size, int* fli, int* sli)
+static inline __attribute__((always_inline)) void mapping_search(control_t* control, size_t* size, int* fli, int* sli)
 {
-	if (size >= control->small_block_size)
+	if (*size >= control->small_block_size)
 	{
-		const size_t round = (1 << (tlsf_fls_sizet(size) - control->sl_index_count_log2)) - 1;
-		size += round;
+		const size_t round = (1 << (tlsf_fls_sizet(*size) - control->sl_index_count_log2)) - 1;
+		*size = (*size + round) & ~round;
 	}
-	mapping_insert(control, size, fli, sli);
+	mapping_insert(control, *size, fli, sli);
 }
 
 static inline __attribute__((always_inline)) block_header_t* search_suitable_block(control_t* control, int* fli, int* sli)
@@ -540,7 +540,7 @@ static inline __attribute__((always_inline)) block_header_t* block_trim_free_lea
 	return remaining_block;
 }
 
-static inline __attribute__((always_inline)) block_header_t* block_locate_free(control_t* control, size_t size)
+static inline __attribute__((always_inline)) block_header_t* block_locate_free(control_t* control, size_t* size)
 {
 	int fl = 0, sl = 0;
 	block_header_t* block = 0;
@@ -563,7 +563,7 @@ static inline __attribute__((always_inline)) block_header_t* block_locate_free(c
 
 	if (block)
 	{
-		tlsf_assert(block_size(block) >= size);
+		tlsf_assert(block_size(block) >= *size);
 		remove_free_block(control, block, fl, sl);
 	}
 
@@ -1000,8 +1000,9 @@ pool_t tlsf_get_pool(tlsf_t tlsf)
 void* tlsf_malloc(tlsf_t tlsf, size_t size)
 {
 	control_t* control = tlsf_cast(control_t*, tlsf);
-	const size_t adjust = adjust_request_size(tlsf, size, ALIGN_SIZE);
-	block_header_t* block = block_locate_free(control, adjust);
+	size_t adjust = adjust_request_size(tlsf, size, ALIGN_SIZE);
+	// block_locate_free() may adjust our allocated size further.
+	block_header_t* block = block_locate_free(control, &adjust);
 	return block_prepare_used(control, block, adjust);
 }
 
@@ -1056,9 +1057,9 @@ void* tlsf_memalign_offs(tlsf_t tlsf, size_t align, size_t size, size_t data_off
 	** alignment constraint. Thus, the gap is not required.
 	** If we requested 0 bytes, return null, as tlsf_malloc(0) does.
 	*/
-	const size_t aligned_size = (adjust && align > ALIGN_SIZE) ? size_with_gap : adjust;
+	size_t aligned_size = (adjust && align > ALIGN_SIZE) ? size_with_gap : adjust;
 
-	block_header_t* block = block_locate_free(control, aligned_size);
+	block_header_t* block = block_locate_free(control, &aligned_size);
 
 	/* This can't be a static assert. */
 	tlsf_assert(sizeof(block_header_t) == block_size_min + block_header_overhead);
