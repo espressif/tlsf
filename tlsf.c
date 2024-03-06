@@ -1010,6 +1010,77 @@ void* tlsf_malloc(tlsf_t tlsf, size_t size)
 }
 
 /**
+ * @brief Allocate memory of at least `size` bytes at a given address in the pool.
+ *
+ * @param tlsf TLSF structure to allocate memory from.
+ * @param size Minimum size, in bytes, of the memory to allocate
+ * @param address address at which the allocation must be done
+ *
+ * @return pointer to free memory or NULL in case of incapacity to perform the malloc
+ */
+void* tlsf_malloc_addr(tlsf_t tlsf, size_t size, void *address)
+{
+	control_t* control = tlsf_cast(control_t*, tlsf);
+
+	/* adjust the address to be ALIGN_SIZE bytes aligned. */
+	const unsigned int addr_adjusted = align_down(tlsf_cast(unsigned int, address), ALIGN_SIZE);
+
+	/* adjust the size to be ALIGN_SIZE bytes aligned. Add to the size the difference
+	 * between the requested address and the address_adjusted. */
+	size_t size_adjusted = align_up(size + (tlsf_cast(unsigned int, address) - addr_adjusted), ALIGN_SIZE);
+
+	/* find the free block that starts before the address in the pool and is big enough
+	 * to support the size of allocation at the given address */
+	block_header_t* block = offset_to_block(tlsf_get_pool(tlsf), -(int)block_header_overhead);
+	
+	const char *alloc_start = tlsf_cast(char*, addr_adjusted);
+	const char *alloc_end = alloc_start + size_adjusted;
+	bool block_found = false;
+	do {
+		const char *block_start = tlsf_cast(char*, block_to_ptr(block));
+		const char *block_end = tlsf_cast(char*, block_to_ptr(block)) + block_size(block);
+		if (block_start <= alloc_start && block_end > alloc_start) {
+			/* A: block_end >= alloc_end. B: block is free */
+			if (block_end < alloc_end || !block_is_free(block)) {
+				/* not(A) || not(B)
+				 * We won't find another suitable block from this point on
+				 * so we can break and return NULL */
+				break;
+			} 
+			/* A && B
+			 * The block can fit the alloc and is located at a position allowing for the alloc
+			 * to be placed at the given address. We can return from the while */
+			block_found = true;
+		} else if (!block_is_last(block)) {
+			/* the block doesn't match the expected criteria, continue with the next block */
+			block = block_next(block);
+		}
+
+	} while (!block_is_last(block) && block_found == false);
+
+	if (!block_found) {
+		return NULL;
+	}
+	
+	/* remove block from the free list since a part of it will be used */
+	block_remove(control, block);
+
+	/* trim any leading space or add the leading space to the overall requested size
+	 * if the leading space is not big enough to store a block of minimum size */
+	const size_t space_before_addr_adjusted = addr_adjusted - tlsf_cast(unsigned int, block_to_ptr(block));
+	block_header_t *return_block = block;
+	if (space_before_addr_adjusted >= block_size_min) {
+		return_block = block_trim_free_leading(control, block, space_before_addr_adjusted);
+	}
+	else {
+		size_adjusted += space_before_addr_adjusted;
+	}
+
+	/* trim trailing space if any and return a pointer to the first usable byte allocated */
+	return  block_prepare_used(control, return_block, size_adjusted);
+}
+
+/**
  * @brief Allocate memory of at least `size` bytes where byte at `data_offset` will be aligned to `alignment`.
  *
  * This function will allocate memory pointed by `ptr`. However, the byte at `data_offset` of
