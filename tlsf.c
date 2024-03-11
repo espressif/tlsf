@@ -284,8 +284,8 @@ static inline __attribute__((always_inline)) void mapping_search(control_t* cont
 {
 	if (*size >= control->small_block_size)
 	{
-		const size_t round = (1 << (tlsf_fls_sizet(*size) - control->sl_index_count_log2)) - 1;
-		*size = (*size + round) & ~round;
+		const size_t round = (1 << (tlsf_fls_sizet(*size) - control->sl_index_count_log2));
+		*size = align_up(*size, round);
 	}
 	mapping_insert(control, *size, fli, sli);
 }
@@ -545,7 +545,7 @@ static inline __attribute__((always_inline)) block_header_t* block_locate_free(c
 	int fl = 0, sl = 0;
 	block_header_t* block = 0;
 
-	if (size)
+	if (*size)
 	{
 		mapping_search(control, size, &fl, &sl);
 		
@@ -1001,6 +1001,11 @@ void* tlsf_malloc(tlsf_t tlsf, size_t size)
 {
 	control_t* control = tlsf_cast(control_t*, tlsf);
 	size_t adjust = adjust_request_size(tlsf, size, ALIGN_SIZE);
+	// Returned size is 0 when the requested size is larger than the max block
+	// size.
+	if (adjust == 0) {
+		return NULL;
+	}
 	// block_locate_free() may adjust our allocated size further.
 	block_header_t* block = block_locate_free(control, &adjust);
 	return block_prepare_used(control, block, adjust);
