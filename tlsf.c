@@ -773,7 +773,10 @@ void tlsf_walk_pool(pool_t pool, tlsf_walker walker, void* user)
 			block_size(block),
 			!block_is_free(block),
 			user);
-		block = block_next(block);
+
+		if (ret_val == true) {
+			block = block_next(block);
+		}
 	}
 }
 
