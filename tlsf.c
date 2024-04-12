@@ -897,6 +897,7 @@ pool_t tlsf_add_pool(tlsf_t tlsf, void* mem, size_t bytes)
 
 	/* Split the block to create a zero-size sentinel block. */
 	next = block_link_next(block);
+	next->next_free = NULL;
 	block_set_size(next, 0);
 	block_set_used(next);
 	block_set_prev_free(next);
