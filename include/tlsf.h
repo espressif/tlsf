@@ -9,15 +9,11 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "tlsf_common.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-/* tlsf_t: a TLSF structure. Can contain 1 to N pools. */
-/* pool_t: a block of memory that TLSF can manage. */
-typedef void* tlsf_t;
-typedef void* pool_t;
 
 /* Create/destroy a memory pool. */
 tlsf_t tlsf_create(void* mem, size_t max_bytes);
@@ -42,9 +38,6 @@ size_t tlsf_block_size(void* ptr);
 
 /* Overheads/limits of internal structures. */
 size_t tlsf_size(tlsf_t tlsf);
-size_t tlsf_align_size(void);
-size_t tlsf_block_size_min(void);
-size_t tlsf_block_size_max(tlsf_t tlsf);
 size_t tlsf_pool_overhead(void);
 size_t tlsf_alloc_overhead(void);
 
@@ -64,16 +57,6 @@ void tlsf_walk_pool(pool_t pool, tlsf_walker walker, void* user);
 /* Returns nonzero if any internal consistency check fails. */
 int tlsf_check(tlsf_t tlsf);
 int tlsf_check_pool(pool_t pool);
-
-/*!
- * @brief Weak function filling the given memory with a given fill pattern.
- * 
- * @param start: pointer to the start of the memory region to fill
- * @param size: size of the memory region to fill
- * @param is_free: Indicate if the pattern to use the fill the region should be 
- * an after free or after allocation pattern.
- */
-__attribute__((weak)) void block_absorb_post_hook(void *start, size_t size, bool is_free);
 
 /**
  * @brief Weak function called on every free block of memory allowing the user to implement
