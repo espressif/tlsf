@@ -7,6 +7,7 @@
 #pragma once
 #include <stddef.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -43,6 +44,11 @@ enum tlsf_config
 /*
 ** Data structures and associated constants.
 */
+
+/* tlsf_t: a TLSF structure. Can contain 1 to N pools. */
+/* pool_t: a block of memory that TLSF can manage. */
+typedef void* tlsf_t;
+typedef void* pool_t;
 
 /* A type used for casting when doing pointer arithmetic. */
 typedef ptrdiff_t tlsfptr_t;
