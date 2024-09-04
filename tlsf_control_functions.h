@@ -5,7 +5,6 @@
  */
 
 #pragma once
-#include "tlsf_common.h"
 #include "tlsf_block_functions.h"
 
 #if defined(__cplusplus)
@@ -14,6 +13,48 @@ extern "C" {
 #else
 #define tlsf_decl static inline __attribute__((always_inline))
 #endif
+
+enum tlsf_config
+{
+	/* All allocation sizes and addresses are aligned to 4 bytes. */
+	ALIGN_SIZE_LOG2 = 2,
+	ALIGN_SIZE = (1 << ALIGN_SIZE_LOG2),
+};
+
+/* The TLSF control structure. */
+typedef struct control_t
+{
+    /* Empty lists point at this block to indicate they are free. */
+    block_header_t block_null;
+
+    /* Local parameter for the pool. Given the maximum
+	 * value of each field, all the following parameters
+	 * can fit on 4 bytes when using bitfields
+	 */
+    unsigned int fl_index_count : 5; // 5 cumulated bits
+    unsigned int fl_index_shift : 3; // 8 cumulated bits
+    unsigned int fl_index_max : 6; // 14 cumulated bits
+    unsigned int sl_index_count : 6; // 20 cumulated bits
+
+	/* log2 of number of linear subdivisions of block sizes. Larger
+	** values require more memory in the control structure. Values of
+	** 4 or 5 are typical.
+	*/
+    unsigned int sl_index_count_log2 : 3; // 23 cumulated bits
+    unsigned int small_block_size : 8; // 31 cumulated bits
+
+	/* size of the metadata ( size of control block,
+	 * sl_bitmap and blocks )
+	 */
+    size_t size;
+
+    /* Bitmaps for free lists. */
+    unsigned int fl_bitmap;
+    unsigned int *sl_bitmap;
+
+    /* Head of free lists. */
+    block_header_t** blocks;
+} control_t;
 
 /*
 ** Architecture-specific bit manipulation routines.
@@ -227,13 +268,12 @@ tlsf_decl size_t tlsf_block_size_min(void)
 	return block_size_min;
 }
 
-tlsf_decl size_t tlsf_block_size_max(tlsf_t tlsf)
+tlsf_decl size_t tlsf_block_size_max(control_t *control)
 {
-	if (tlsf == NULL)
+	if (control == NULL)
 	{
 		return 0;
 	}
-	control_t* control = tlsf_cast(control_t*, tlsf);
 	return tlsf_cast(size_t, 1) << control->fl_index_max;
 }
 
@@ -241,7 +281,7 @@ tlsf_decl size_t tlsf_block_size_max(tlsf_t tlsf)
 ** Adjust an allocation size to be aligned to word size, and no smaller
 ** than internal minimum.
 */
-tlsf_decl size_t adjust_request_size(tlsf_t tlsf, size_t size, size_t align)
+tlsf_decl size_t adjust_request_size(control_t *control, size_t size, size_t align)
 {
 	size_t adjust = 0;
 	if (size)
@@ -249,7 +289,7 @@ tlsf_decl size_t adjust_request_size(tlsf_t tlsf, size_t size, size_t align)
 		const size_t aligned = align_up(size, align);
 
 		/* aligned sized must not exceed block_size_max or we'll go out of bounds on sl_bitmap */
-		if (aligned < tlsf_block_size_max(tlsf)) 
+		if (aligned < tlsf_block_size_max(control)) 
 		{
 			adjust = tlsf_max(aligned, block_size_min);
 		}

@@ -7,13 +7,18 @@
 #ifndef INCLUDED_tlsf
 #define INCLUDED_tlsf
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include "tlsf_common.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+/* tlsf_t: a TLSF structure. Can contain 1 to N pools. */
+/* pool_t: a block of memory that TLSF can manage. */
+typedef void* tlsf_t;
+typedef void* pool_t;
 
 /* Create/destroy a memory pool. */
 tlsf_t tlsf_create(void* mem, size_t max_bytes);

@@ -5,11 +5,78 @@
  */
 
 #pragma once
-#include "tlsf_common.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+/*
+** Constants definition for poisoning.
+** These defines are used as 3rd argument of tlsf_poison_fill_region() for readability purposes.
+*/
+#define POISONING_AFTER_FREE true
+#define POISONING_AFTER_MALLOC !POISONING_AFTER_FREE
+
+/* A type used for casting when doing pointer arithmetic. */
+typedef ptrdiff_t tlsfptr_t;
+
+/*
+** Cast and min/max macros.
+*/
+#if !defined (tlsf_cast)
+#define tlsf_cast(t, exp)	((t) (exp))
+#endif
+#if !defined (tlsf_min)
+#define tlsf_min(a, b)		((a) < (b) ? (a) : (b))
+#endif
+#if !defined (tlsf_max)
+#define tlsf_max(a, b)		((a) > (b) ? (a) : (b))
+#endif
+
+/*
+** Set assert macro, if it has not been provided by the user.
+*/
+#if !defined (tlsf_assert)
+#define tlsf_assert assert
+#endif
+
+typedef struct block_header_t
+{
+	/* Points to the previous physical block. */
+	struct block_header_t* prev_phys_block;
+
+	/* The size of this block, excluding the block header. */
+	size_t size;
+
+	/* Next and previous free blocks. */
+	struct block_header_t* next_free;
+	struct block_header_t* prev_free;
+} block_header_t;
+
+/* User data starts directly after the size field in a used block. */
+#define block_start_offset (offsetof(block_header_t, size) + sizeof(size_t))
+
+/*
+** A free block must be large enough to store its header minus the size of
+** the prev_phys_block field, and no larger than the number of addressable
+** bits for FL_INDEX.
+*/
+#define block_size_min (sizeof(block_header_t) - sizeof(block_header_t*))
+
+/*
+** Since block sizes are always at least a multiple of 4, the two least
+** significant bits of the size field are used to store the block status:
+** - bit 0: whether block is busy or free
+** - bit 1: whether previous block is busy or free
+*/
+#define block_header_free_bit (1UL << 0)
+#define block_header_prev_free_bit (1UL << 1)
+
+/*
+** The size of the block header exposed to used blocks is the size field.
+** The prev_phys_block field is stored *inside* the previous free block.
+*/
+#define block_header_overhead (sizeof(size_t))
 
 /*
 ** block_header_t member functions.

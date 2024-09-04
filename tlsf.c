@@ -8,7 +8,6 @@
 #include <limits.h>
 #include <stdio.h>
 #include "tlsf.h"
-#include "tlsf_common.h"
 #include "tlsf_block_functions.h"
 #include "tlsf_control_functions.h"
 
