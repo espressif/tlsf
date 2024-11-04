@@ -710,3 +710,23 @@ void* tlsf_realloc(tlsf_t tlsf, void* ptr, size_t size)
 
 	return p;
 }
+
+void* tlsf_find_containing_block(pool_t pool, void *ptr)
+{
+    block_header_t* block = offset_to_block(pool, -(int)block_header_overhead);
+
+    while (block && !block_is_last(block))
+	{
+        if (!block_is_free(block)) {
+            void *block_end = block_to_ptr(block) + block_size(block);
+            if (block_to_ptr(block) <= ptr && block_end > ptr) {
+                // we found the containing block, return
+                return block_to_ptr(block);
+            }
+        }
+
+        block = block_next(block);
+	}
+
+    return NULL;
+}

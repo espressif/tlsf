@@ -64,6 +64,15 @@ int tlsf_check(tlsf_t tlsf);
 int tlsf_check_pool(pool_t pool);
 
 /**
+ * @brief Find the block containing the pointer passed as parameter
+ * 
+ * @param pool The pool into which to look for the block
+ * @param ptr The pointer we want to find the containing block of
+ * @return void* The pointer to the containing block if found, NULL if not.
+ */
+void* tlsf_find_containing_block(pool_t pool, void *ptr);
+
+/**
  * @brief Weak function called on every free block of memory allowing the user to implement
  * application specific checks on the memory.
  * 
