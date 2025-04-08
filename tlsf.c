@@ -7,6 +7,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdint.h>
 #include "tlsf.h"
 #include "tlsf_block_functions.h"
 #include "tlsf_control_functions.h"
@@ -458,11 +459,11 @@ void* tlsf_malloc_addr(tlsf_t tlsf, size_t size, void *address)
 	control_t* control = tlsf_cast(control_t*, tlsf);
 
 	/* adjust the address to be ALIGN_SIZE bytes aligned. */
-	const unsigned int addr_adjusted = align_down(tlsf_cast(unsigned int, address), ALIGN_SIZE);
+	const uintptr_t addr_adjusted = align_down(tlsf_cast(uintptr_t, address), ALIGN_SIZE);
 
 	/* adjust the size to be ALIGN_SIZE bytes aligned. Add to the size the difference
 	 * between the requested address and the address_adjusted. */
-	size_t size_adjusted = align_up(size + (tlsf_cast(unsigned int, address) - addr_adjusted), ALIGN_SIZE);
+	size_t size_adjusted = align_up(size + (tlsf_cast(uintptr_t, address) - addr_adjusted), ALIGN_SIZE);
 
 	/* find the free block that starts before the address in the pool and is big enough
 	 * to support the size of allocation at the given address */
@@ -502,7 +503,7 @@ void* tlsf_malloc_addr(tlsf_t tlsf, size_t size, void *address)
 
 	/* trim any leading space or add the leading space to the overall requested size
 	 * if the leading space is not big enough to store a block of minimum size */
-	const size_t space_before_addr_adjusted = addr_adjusted - tlsf_cast(unsigned int, block_to_ptr(block));
+	const size_t space_before_addr_adjusted = addr_adjusted - tlsf_cast(uintptr_t, block_to_ptr(block));
 	block_header_t *return_block = block;
 	if (space_before_addr_adjusted >= block_size_min) {
 		return_block = block_trim_free_leading(control, block, space_before_addr_adjusted);
