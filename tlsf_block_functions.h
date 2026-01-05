@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <assert.h>
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
