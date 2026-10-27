@@ -1,0 +1,7 @@
+name: 'tlsf'
+version: '3.1'
+supplier: 'Organization: Espressif Systems (Shanghai) CO LTD'
+originator: 'Person: Matthew Conte'
+description: Two-Level Segregated Fit memory allocator with additional features and patches from Espressif.
+license: BSD-3-Clause
+copyright: '2006-2016 Matthew Conte'
